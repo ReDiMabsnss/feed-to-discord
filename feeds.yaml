@@ -93,6 +93,7 @@ feeds:
   - name: Embrace The Red
     url: https://embracethered.com/blog/index.xml
     webhook: DISCORD_WEBHOOK_SECURITY
+    max_age_days: 30      # postet selten, Beitraege sind oft aelter als 14 Tage
 
   - name: OWASP GenAI Security
     url: https://genai.owasp.org/feed/
@@ -101,7 +102,6 @@ feeds:
   - name: Adversa AI
     url: https://adversa.ai/feed/
     webhook: DISCORD_WEBHOOK_SECURITY
-    max_per_run: 2
     fetch_full: true      # Feed liefert nur Anreisser
 
   # Breite Security-Forschung: nur Eintraege mit KI-Bezug durchlassen.
@@ -119,6 +119,7 @@ feeds:
     url: https://portswigger.net/research/rss
     webhook: DISCORD_WEBHOOK_SECURITY
     keywords: *ai_security
+    max_age_days: 30      # gruendliche Forschung, erscheint in groesseren Abstaenden
     fetch_full: true
 
   - name: Unit 42

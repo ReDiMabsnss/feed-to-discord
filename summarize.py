@@ -277,8 +277,14 @@ def main() -> int:
             print(f"  Erstlauf, {len(parsed.entries)} Eintraege als gesehen markiert")
             continue
 
-        candidates = [e for e in fresh if matches_keywords(e, feed_cfg.get("keywords"))][:limit]
+        passend = [e for e in fresh if matches_keywords(e, feed_cfg.get("keywords"))]
+        candidates = passend[:limit]
+        # Was das Limit abschneidet, bleibt ungemerkt und rutscht im naechsten
+        # Lauf nach. Sonst waeren diese Meldungen dauerhaft verloren.
+        zurueckgestellt = {entry_id(e) for e in passend[limit:]}
         print(f"  {len(fresh)} neu und aktuell, {len(candidates)} werden gepostet")
+        if zurueckgestellt:
+            print(f"  {len(zurueckgestellt)} ueber dem Limit, folgen im naechsten Lauf")
 
         failed = set()
         for entry in candidates:
@@ -297,10 +303,14 @@ def main() -> int:
                 failed.add(entry_id(entry))
             time.sleep(2)
 
-        # Alle frischen IDs merken, auch die per Keyword gefilterten - sonst tauchen
-        # sie beim naechsten Lauf wieder als neu auf. Ausser den fehlgeschlagenen.
-        merged = [entry_id(e) for e in parsed.entries if entry_id(e) not in failed]
-        state[url] = (merged + list(seen))[:KEEP_IDS_PER_FEED]
+        # Alle IDs merken, auch die per Keyword gefilterten - sonst tauchen sie
+        # beim naechsten Lauf wieder als neu auf. Zwei Ausnahmen bleiben offen:
+        # fehlgeschlagene Posts und was das Limit abgeschnitten hat.
+        # dict.fromkeys entdoppelt und behaelt die Reihenfolge: ohne das landet
+        # jede schon bekannte ID erneut in der Liste und blaeht seen.json auf.
+        offen = failed | zurueckgestellt
+        merged = [entry_id(e) for e in parsed.entries if entry_id(e) not in offen]
+        state[url] = list(dict.fromkeys(merged + list(seen)))[:KEEP_IDS_PER_FEED]
 
     save_state(state)
     print(f"Fertig. {posted} Meldungen gepostet.")
