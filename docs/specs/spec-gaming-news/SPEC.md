@@ -33,9 +33,11 @@ Gaming-News manuell zu verfolgen.
 
 - **CAP-3**: Ueber feeds.yaml integrieren, ohne strukturelle Codeaenderung.
   Intent: Gaming-Feeds werden als neue Eintraege unter dem bestehenden
-  `feeds:`-Schema in `feeds.yaml` ergaenzt (Quellen: IGN, PC Gamer, Eurogamer,
-  GameSpot - siehe `feeds.yaml` fuer die aktuelle, gepflegte Liste); die
-  Feed-Verarbeitung selbst braucht keine Codeaenderung.
+  `feeds:`-Schema in `feeds.yaml` ergaenzt - breite Gaming-News-Seiten
+  (IGN, PC Gamer, Eurogamer, GameSpot) plus einzelne Studio-Quellen auf
+  Wunsch (ArenaNet, CD Projekt Red, Blizzard, Hello Games/Light No Fire -
+  siehe `feeds.yaml` fuer die aktuelle, gepflegte Liste inkl. Kommentaren zu
+  Quellenwahl); die Feed-Verarbeitung selbst braucht keine Codeaenderung.
   Success: Die neuen Feeds laufen im selben geplanten Workflow-Lauf mit wie
   die bestehenden Kategorien, ohne zweites Skript oder zweiten Workflow.
 
@@ -71,6 +73,14 @@ Gaming-News manuell zu verfolgen.
   Verhalten von `summarize.py`).
 - Zusammenfassungen bleiben Deutsch, konsistent mit den bestehenden
   Kategorien - kein Umschalten der Sprache pro Kategorie.
+- Nicht jedes angefragte Studio hat ein funktionierendes offizielles RSS.
+  Wo keins existiert, ist eine gepruefte Ersatzquelle dokumentiert statt die
+  Quelle wegzulassen: CD Projekt Red laeuft ueber die offiziellen Steam-
+  News-Feeds ihrer Spiele (cdprojekt.com selbst ist seit ~2019 inaktiv);
+  Blizzard laeuft ueber Blizzard Watch, eine etablierte Community-Seite
+  (kein offizieller Blizzard-Kanal - news.blizzard.com liefert kein
+  funktionierendes RSS mehr). Jede Quelle traegt diese Herkunft als
+  Kommentar in `feeds.yaml`.
 
 ## Non-goals
 

@@ -171,3 +171,57 @@ feeds:
     webhook: DISCORD_WEBHOOK_GAMING
     archive: gaming
     archive_title: AI-Gaming News
+
+  # ---------- Gaming: einzelne Studios ----------
+  # Auf Wunsch aufgenommen. ArenaNet hat aktuell nur Guild Wars 2 als
+  # laufendes Spiel, daher deckt der GW2-Feed "ArenaNet" ab.
+  - name: Guild Wars 2 (ArenaNet)
+    url: https://www.guildwars2.com/en/feed/
+    webhook: DISCORD_WEBHOOK_GAMING
+    archive: gaming
+    archive_title: AI-Gaming News
+
+  # CD Projekt Reds eigener News-Feed (cdprojekt.com) ist praktisch tot
+  # (letzter Eintrag ~2019, nur Investor-News). Ersatz: die offiziellen
+  # Steam-News-Feeds der beiden aktuellen Spiele - echte CDPR-Posts, aber
+  # seltener als die breiten Gaming-Seiten, daher max_age_days hoeher.
+  - name: Cyberpunk 2077 (CD Projekt Red)
+    url: https://store.steampowered.com/feeds/news/app/1091500/
+    webhook: DISCORD_WEBHOOK_GAMING
+    archive: gaming
+    archive_title: AI-Gaming News
+    max_age_days: 30
+
+  - name: The Witcher 3 (CD Projekt Red)
+    url: https://store.steampowered.com/feeds/news/app/292030/
+    webhook: DISCORD_WEBHOOK_GAMING
+    archive: gaming
+    archive_title: AI-Gaming News
+    max_age_days: 30
+
+  # Blizzard hat kein offizielles RSS mehr (news.blizzard.com liefert nur
+  # noch eine JS-Seite, der alte /rss.xml-Endpunkt liefert Server-Fehler).
+  # Blizzard Watch ist eine etablierte Community-Seite (ex-WoW Insider),
+  # kein offizieller Blizzard-Kanal - deckt WoW/Diablo/Overwatch/StarCraft ab.
+  - name: Blizzard Watch
+    url: https://blizzardwatch.com/feed/
+    webhook: DISCORD_WEBHOOK_GAMING
+    archive: gaming
+    archive_title: AI-Gaming News
+
+  # Light No Fire ist unveroeffentlicht, der Steam-News-Feed ist aktuell
+  # leer und springt automatisch an, sobald Hello Games dort postet.
+  - name: Light No Fire (Hello Games)
+    url: https://store.steampowered.com/feeds/news/app/2719590/
+    webhook: DISCORD_WEBHOOK_GAMING
+    archive: gaming
+    archive_title: AI-Gaming News
+
+  # Aktuelles Spiel desselben Studios. Feed enthaelt den kompletten
+  # Patch-Verlauf (300+ Eintraege), tatsaechliches Tempo ist aber nur
+  # ca. 1 Post/Woche - Standard-max_age_days reicht.
+  - name: No Man's Sky (Hello Games)
+    url: https://www.nomanssky.com/feed/
+    webhook: DISCORD_WEBHOOK_GAMING
+    archive: gaming
+    archive_title: AI-Gaming News
