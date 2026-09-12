@@ -38,8 +38,12 @@ feeds:
 
   # Anthropic hat keinen offiziellen Feed. Das hier ist ein Community-Spiegel
   # und kann jederzeit verschwinden. Faellt er aus: Zeilen loeschen.
+  # Auf Commit gepinnt statt auf den mutable "main"-Branch: der Feed-Inhalt
+  # laeuft in fetch_full ueber den Gemini-Prompt, eine Uebernahme des Mirror-
+  # Repos duerfte sich nicht sofort im naechsten Lauf bemerkbar machen.
+  # Aktualisieren: neuen Commit-SHA des Repos pruefen und hier eintragen.
   - name: Anthropic News
-    url: https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_news.xml
+    url: https://raw.githubusercontent.com/Olshansk/rss-feeds/c0d1ded73192fc3debd5b3215c0ab713b0fb7926/feeds/feed_anthropic_news.xml
     webhook: DISCORD_WEBHOOK_ALLGEMEIN
     fetch_full: true      # Feed liefert keinen Textkoerper
 
