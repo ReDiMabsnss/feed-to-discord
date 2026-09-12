@@ -1,0 +1,48 @@
+# Quellen fuer den News-Bot.
+# webhook: Name des GitHub-Secrets, in dem die Discord-Webhook-URL liegt.
+# Feed-URLs vor dem ersten Lauf pruefen: im Browser oeffnen, es muss XML kommen.
+
+feeds:
+  # ---------- allgemein ----------
+  - name: Anthropic News
+    url: https://www.anthropic.com/news/rss.xml
+    webhook: DISCORD_WEBHOOK_ALLGEMEIN
+
+  - name: Google DeepMind Blog
+    url: https://deepmind.google/blog/rss.xml
+    webhook: DISCORD_WEBHOOK_ALLGEMEIN
+
+  - name: Hugging Face Blog
+    url: https://huggingface.co/blog/feed.xml
+    webhook: DISCORD_WEBHOOK_ALLGEMEIN
+
+  - name: Simon Willison
+    url: https://simonwillison.net/atom/everything/
+    webhook: DISCORD_WEBHOOK_ALLGEMEIN
+
+  - name: arXiv cs.AI
+    url: http://export.arxiv.org/rss/cs.AI
+    webhook: DISCORD_WEBHOOK_ALLGEMEIN
+    max_per_run: 2          # arXiv ist laut, hart begrenzen
+
+  - name: heise KI
+    url: https://www.heise.de/rss/heise-atom.xml
+    webhook: DISCORD_WEBHOOK_ALLGEMEIN
+    keywords: [KI, "Künstliche Intelligenz", LLM, OpenAI, Anthropic, Gemini]
+
+  # ---------- SAP ----------
+  - name: SAP Community AI Blogs
+    url: https://community.sap.com/khhcw49343/rss/board?board.id=aiblog-board
+    webhook: DISCORD_WEBHOOK_SAP
+
+  - name: SAP Community Technology (by SAP)
+    url: https://community.sap.com/khhcw49343/rss/board?board.id=technology-blog-sap
+    webhook: DISCORD_WEBHOOK_SAP
+
+  - name: SAP News Center
+    url: https://news.sap.com/feed/
+    webhook: DISCORD_WEBHOOK_SAP
+
+  - name: SAPinsider Blogs
+    url: https://sapinsider.org/type/blogs/feed/
+    webhook: DISCORD_WEBHOOK_SAP
