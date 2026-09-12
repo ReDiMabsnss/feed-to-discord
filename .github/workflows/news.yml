@@ -16,13 +16,16 @@ jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      # Auf Commit-SHA gepinnt statt auf den Tag: Tags sind verschiebbar, ein
+      # uebernommenes Action-Repo koennte v5 auf anderen Code zeigen lassen.
+      # Kommentar nennt die Version, damit man weiss, was der SHA ist.
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
 
-      - run: pip install feedparser requests pyyaml
+      - run: pip install -r requirements.txt
 
       - name: Feeds verarbeiten
         env:

@@ -27,7 +27,11 @@ ARCHIVE_DIR = ROOT / "archive"
 MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 DEFAULT_MAX_PER_RUN = int(os.getenv("MAX_PER_RUN", "4"))
-KEEP_IDS_PER_FEED = 2000          # muss groesser sein als der laengste Feed
+# Muss deutlich groesser sein als der laengste Feed, sonst werden IDs verworfen,
+# die noch im Feed stehen - die Meldungen gingen dann erneut raus. Groesster
+# gemessener Feed: arXiv cs.AI mit 273 Eintraegen. 800 laesst dafuer Luft und
+# deckelt seen.json trotzdem deutlich niedriger als die frueheren 2000.
+KEEP_IDS_PER_FEED = 800
 MAX_AGE_DAYS = int(os.getenv("MAX_AGE_DAYS", "14"))
 
 FOOTER = "KI-generierte Zusammenfassung, nicht redaktionell geprueft"
@@ -203,7 +207,15 @@ def post_to_discord(webhook_url: str, source: str, title: str, link: str, summar
         resp.raise_for_status()
         return True
     except Exception as exc:  # noqa: BLE001
-        print(f"  Discord-Post fehlgeschlagen: {exc}", file=sys.stderr)
+        # Nur Fehlertyp und Statuscode ausgeben, nie die Ausnahme selbst: die
+        # enthaelt die angefragte URL, und die Webhook-URL ist das Geheimnis.
+        # GitHubs Maskierung hilft dabei nicht, weil requests die URL in Host
+        # und Pfad zerlegt und der Secret-Wert so nie zusammenhaengend dasteht.
+        # Action-Logs oeffentlicher Repos kann jeder lesen.
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        detail = f", HTTP {status}" if status else ""
+        print(f"  Discord-Post fehlgeschlagen: {type(exc).__name__}{detail}",
+              file=sys.stderr)
         return False
 
 
@@ -311,6 +323,13 @@ def main() -> int:
         offen = failed | zurueckgestellt
         merged = [entry_id(e) for e in parsed.entries if entry_id(e) not in offen]
         state[url] = list(dict.fromkeys(merged + list(seen)))[:KEEP_IDS_PER_FEED]
+
+    # Feeds, die nicht mehr in feeds.yaml stehen, aus dem Stand werfen. Sonst
+    # bleiben ihre IDs fuer immer liegen - aktuell zwei Altlasten mit 500 IDs.
+    aktuell = {f["url"] for f in config["feeds"]}
+    for url in [u for u in state if u not in aktuell]:
+        print(f"Stand fuer entfernten Feed verworfen: {url}")
+        del state[url]
 
     save_state(state)
     print(f"Fertig. {posted} Meldungen gepostet.")

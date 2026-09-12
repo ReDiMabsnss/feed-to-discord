@@ -1,0 +1,20 @@
+# Feste Versionen statt "pip install feedparser requests pyyaml": der Lauf hat
+# Zugriff auf GEMINI_API_KEY, drei Discord-Webhooks und ein Token mit
+# Schreibrecht auf das Repo. Eine kompromittierte Paketversion haette das auch.
+# Auch die mitgezogenen Abhaengigkeiten sind gepinnt, sonst bleibt die Luecke offen.
+#
+# Stand: erfolgreicher Lauf 34709310661 vom 12.09.2026.
+# Aktualisieren: Versionen hier anheben, Lauf manuell starten, Ergebnis pruefen.
+
+feedparser==6.0.14
+requests==2.34.2
+PyYAML==6.0.3
+
+# mitgezogen von feedparser
+feedparser-sgmllib==2.1.0
+
+# mitgezogen von requests
+certifi==2026.7.22
+charset-normalizer==3.5.1
+idna==3.19
+urllib3==2.7.0
