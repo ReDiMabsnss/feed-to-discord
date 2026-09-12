@@ -25,7 +25,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Tests
+        run: pytest -q
 
       - name: Feeds verarbeiten
         env:

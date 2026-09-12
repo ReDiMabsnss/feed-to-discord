@@ -1,0 +1,4 @@
+# Nur zum Testen, nicht Teil des laufenden Bots - deshalb getrennt von
+# requirements.txt und nicht auf der Produktions-Angriffsflaeche.
+
+pytest==8.3.4

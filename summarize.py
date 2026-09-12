@@ -246,6 +246,19 @@ def archive_entry(entry, source: str, title: str, link: str, summary: str | None
         print(f"  Archiv-Eintrag fehlgeschlagen: {exc}", file=sys.stderr)
 
 
+def merge_seen(entry_ids: list, seen: set, excluded: set, keep: int) -> list:
+    """Baut den neuen Seen-Stand fuer einen Feed.
+
+    Entdoppelt und cappt bei `keep`. `excluded` (fehlgeschlagene Posts und was
+    das Limit abgeschnitten hat) bleibt aussen vor, damit diese Eintraege beim
+    naechsten Lauf erneut versucht werden - sonst waeren sie dauerhaft verloren.
+    dict.fromkeys behaelt die Reihenfolge; ohne das landet jede schon bekannte
+    ID erneut in der Liste und blaeht seen.json auf.
+    """
+    merged = [e for e in entry_ids if e not in excluded]
+    return list(dict.fromkeys(merged + list(seen)))[:keep]
+
+
 def main() -> int:
     print(f"Modell: {MODEL}")
     if API_KEY:
@@ -260,69 +273,76 @@ def main() -> int:
     posted = 0
 
     for feed_cfg in config["feeds"]:
-        name = feed_cfg["name"]
-        url = feed_cfg["url"]
-        webhook = os.getenv(feed_cfg["webhook"], "").strip()
-        limit = int(feed_cfg.get("max_per_run", DEFAULT_MAX_PER_RUN))
+        name = feed_cfg.get("name", "?")
+        try:
+            url = feed_cfg["url"]
+            webhook = os.getenv(feed_cfg["webhook"], "").strip()
+            limit = int(feed_cfg.get("max_per_run", DEFAULT_MAX_PER_RUN))
 
-        if not webhook:
-            print(f"{name}: Secret {feed_cfg['webhook']} fehlt, uebersprungen")
-            continue
+            if not webhook:
+                print(f"{name}: Secret {feed_cfg['webhook']} fehlt, uebersprungen")
+                continue
 
-        print(f"{name}: lese {url}")
-        parsed = feedparser.parse(url)
-        if parsed.bozo and not parsed.entries:
-            print(f"  Feed nicht lesbar: {parsed.get('bozo_exception')}", file=sys.stderr)
-            continue
+            print(f"{name}: lese {url}")
+            parsed = feedparser.parse(url)
+            if parsed.bozo and not parsed.entries:
+                print(f"  Feed nicht lesbar: {parsed.get('bozo_exception')}", file=sys.stderr)
+                continue
 
-        seen = set(state.get(url, []))
-        max_age = int(feed_cfg.get("max_age_days", MAX_AGE_DAYS))
-        fresh = [
-            e for e in parsed.entries
-            if entry_id(e) not in seen and is_recent(e, max_age)
-        ]
-        print(f"  {len(parsed.entries)} Eintraege im Feed")
+            seen = set(state.get(url, []))
+            max_age = int(feed_cfg.get("max_age_days", MAX_AGE_DAYS))
+            fresh = [
+                e for e in parsed.entries
+                if entry_id(e) not in seen and is_recent(e, max_age)
+            ]
+            print(f"  {len(parsed.entries)} Eintraege im Feed")
 
-        if first_run:
-            # Erster Lauf: nur Stand merken, nicht 200 Altmeldungen posten.
-            state[url] = [entry_id(e) for e in parsed.entries][:KEEP_IDS_PER_FEED]
-            print(f"  Erstlauf, {len(parsed.entries)} Eintraege als gesehen markiert")
-            continue
+            if first_run:
+                # Erster Lauf: nur Stand merken, nicht 200 Altmeldungen posten.
+                state[url] = [entry_id(e) for e in parsed.entries][:KEEP_IDS_PER_FEED]
+                print(f"  Erstlauf, {len(parsed.entries)} Eintraege als gesehen markiert")
+                continue
 
-        passend = [e for e in fresh if matches_keywords(e, feed_cfg.get("keywords"))]
-        candidates = passend[:limit]
-        # Was das Limit abschneidet, bleibt ungemerkt und rutscht im naechsten
-        # Lauf nach. Sonst waeren diese Meldungen dauerhaft verloren.
-        zurueckgestellt = {entry_id(e) for e in passend[limit:]}
-        print(f"  {len(fresh)} neu und aktuell, {len(candidates)} werden gepostet")
-        if zurueckgestellt:
-            print(f"  {len(zurueckgestellt)} ueber dem Limit, folgen im naechsten Lauf")
+            passend = [e for e in fresh if matches_keywords(e, feed_cfg.get("keywords"))]
+            candidates = passend[:limit]
+            # Was das Limit abschneidet, bleibt ungemerkt und rutscht im naechsten
+            # Lauf nach. Sonst waeren diese Meldungen dauerhaft verloren.
+            zurueckgestellt = {entry_id(e) for e in passend[limit:]}
+            print(f"  {len(fresh)} neu und aktuell, {len(candidates)} werden gepostet")
+            if zurueckgestellt:
+                print(f"  {len(zurueckgestellt)} ueber dem Limit, folgen im naechsten Lauf")
 
-        failed = set()
-        for entry in candidates:
-            title = strip_html(entry.get("title", "ohne Titel"))
-            link = entry.get("link", "")
-            body = entry_body(entry)
-            # Feed liefert nur den Titel (oder nichts): Artikelseite nachladen.
-            if feed_cfg.get("fetch_full") and len(body) < 200:
-                body = fetch_article_text(link)
-            summary = summarize(title, body)
-            if post_to_discord(webhook, name, title, link, summary):
-                posted += 1
-                archive_entry(entry, name, title, link, summary)
-            else:
-                # Nicht als gesehen markieren, damit der naechste Lauf es erneut versucht.
-                failed.add(entry_id(entry))
-            time.sleep(2)
+            failed = set()
+            for entry in candidates:
+                title = strip_html(entry.get("title", "ohne Titel"))
+                link = entry.get("link", "")
+                body = entry_body(entry)
+                # Feed liefert nur den Titel (oder nichts): Artikelseite nachladen.
+                if feed_cfg.get("fetch_full") and len(body) < 200:
+                    body = fetch_article_text(link)
+                summary = summarize(title, body)
+                if post_to_discord(webhook, name, title, link, summary):
+                    posted += 1
+                    archive_entry(entry, name, title, link, summary)
+                else:
+                    # Nicht als gesehen markieren, damit der naechste Lauf es erneut versucht.
+                    failed.add(entry_id(entry))
+                time.sleep(2)
 
-        # Alle IDs merken, auch die per Keyword gefilterten - sonst tauchen sie
-        # beim naechsten Lauf wieder als neu auf. Zwei Ausnahmen bleiben offen:
-        # fehlgeschlagene Posts und was das Limit abgeschnitten hat.
-        # dict.fromkeys entdoppelt und behaelt die Reihenfolge: ohne das landet
-        # jede schon bekannte ID erneut in der Liste und blaeht seen.json auf.
-        offen = failed | zurueckgestellt
-        merged = [entry_id(e) for e in parsed.entries if entry_id(e) not in offen]
-        state[url] = list(dict.fromkeys(merged + list(seen)))[:KEEP_IDS_PER_FEED]
+            # Alle IDs merken, auch die per Keyword gefilterten - sonst tauchen sie
+            # beim naechsten Lauf wieder als neu auf. Zwei Ausnahmen bleiben offen:
+            # fehlgeschlagene Posts und was das Limit abgeschnitten hat.
+            offen = failed | zurueckgestellt
+            state[url] = merge_seen(
+                [entry_id(e) for e in parsed.entries], seen, offen, KEEP_IDS_PER_FEED
+            )
+        except Exception as exc:  # noqa: BLE001 - ein Feed darf den Lauf nie abbrechen
+            # Ohne diesen Fang wuerde ein einzelner kaputter Feed (fehlende
+            # Config-Keys, ein Datum ausserhalb des gueltigen Bereichs, ...)
+            # main() abbrechen, bevor save_state() laeuft - bereits gepostete
+            # Meldungen aus frueheren Feeds dieses Laufs gingen dann verloren
+            # und wuerden beim naechsten Lauf erneut gepostet.
+            print(f"{name}: unerwarteter Fehler, Feed uebersprungen: {exc}", file=sys.stderr)
 
     # Feeds, die nicht mehr in feeds.yaml stehen, aus dem Stand werfen. Sonst
     # bleiben ihre IDs fuer immer liegen - aktuell zwei Altlasten mit 500 IDs.
