@@ -85,6 +85,24 @@ def is_recent(entry, max_age_days: int) -> bool:
     return age_days <= max_age_days
 
 
+def fetch_article_text(url: str, limit: int = 4000) -> str:
+    """Laedt die Artikelseite und zieht groben Text heraus. Nur als Rueckfall,
+    wenn der Feed keinen Textkoerper mitliefert."""
+    try:
+        resp = requests.get(
+            url,
+            timeout=30,
+            headers={"User-Agent": "Mozilla/5.0 (compatible; feed-to-discord/1.0)"},
+        )
+        resp.raise_for_status()
+    except Exception as exc:  # noqa: BLE001
+        print(f"  Artikel nicht abrufbar: {exc}", file=sys.stderr)
+        return ""
+
+    body = re.sub(r"(?is)<(script|style|nav|header|footer)[^>]*>.*?</\1>", " ", resp.text)
+    return strip_html(body)[:limit]
+
+
 def entry_id(entry) -> str:
     return entry.get("id") or entry.get("link") or entry.get("title", "")
 
@@ -113,7 +131,13 @@ def summarize(title: str, body: str) -> str | None:
                 ]
             }
         ],
-        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 300},
+        "generationConfig": {
+            "temperature": 0.2,
+            "maxOutputTokens": 800,
+            # Thinking-Tokens zaehlen gegen maxOutputTokens. Ohne diese Zeile
+            # wird die Antwort abgeschnitten, bevor sie ueberhaupt beginnt.
+            "thinkingConfig": {"thinkingBudget": 0},
+        },
     }
 
     for attempt in range(3):
@@ -133,7 +157,13 @@ def summarize(title: str, body: str) -> str | None:
                 print(f"  Gemini HTTP {resp.status_code}: {resp.text[:300]}", file=sys.stderr)
                 resp.raise_for_status()
             data = resp.json()
-            text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+            cand = (data.get("candidates") or [{}])[0]
+            parts = cand.get("content", {}).get("parts") or []
+            text = "".join(p.get("text", "") for p in parts).strip()
+            if not text:
+                print(f"  leere Antwort, finishReason={cand.get('finishReason')}",
+                      file=sys.stderr)
+                return None
             return None if text.upper().startswith("KEINE") else text
         except Exception as exc:  # noqa: BLE001 - bewusst breit, Bot darf nie sterben
             print(f"  Zusammenfassung fehlgeschlagen: {exc}", file=sys.stderr)
@@ -218,6 +248,9 @@ def main() -> int:
             title = strip_html(entry.get("title", "ohne Titel"))
             link = entry.get("link", "")
             body = entry_body(entry)
+            # Feed liefert nur den Titel (oder nichts): Artikelseite nachladen.
+            if feed_cfg.get("fetch_full") and len(body) < 200:
+                body = fetch_article_text(link)
             summary = summarize(title, body)
             if post_to_discord(webhook, name, title, link, summary):
                 posted += 1
