@@ -20,6 +20,7 @@ import yaml
 ROOT = pathlib.Path(__file__).parent
 STATE_FILE = ROOT / "state" / "seen.json"
 FEEDS_FILE = ROOT / "feeds.yaml"
+ARCHIVE_DIR = ROOT / "archive"
 
 # Modellnamen aendern sich. Aktuellen Namen in Google AI Studio pruefen und
 # hier oder als Repository-Variable GEMINI_MODEL setzen.
@@ -197,6 +198,33 @@ def post_to_discord(webhook_url: str, source: str, title: str, link: str, summar
         return False
 
 
+def archive_entry(entry, source: str, title: str, link: str, summary: str | None) -> None:
+    """Haengt die Meldung an die Monatsdatei unter archive/ an.
+
+    Baut eine Wissenssammlung, die sich als einzelne Quelle in NotebookLM
+    einlesen laesst. Ein Fehler hier darf den Lauf nicht abbrechen - die
+    Meldung ist zu diesem Zeitpunkt schon bei Discord.
+    """
+    stamp = entry.get("published_parsed") or entry.get("updated_parsed")
+    day = time.strftime("%Y-%m-%d", stamp or time.gmtime())
+    month = day[:7]
+
+    try:
+        ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+        path = ARCHIVE_DIR / f"{month}.md"
+        header = f"# KI-News-Archiv {month}\n" if not path.exists() else ""
+        with path.open("a", encoding="utf-8") as fh:
+            fh.write(
+                f"{header}\n## {title}\n\n"
+                f"- Quelle: {source}\n"
+                f"- Datum: {day}\n"
+                f"- Link: {link}\n\n"
+                f"{summary if summary else '_Keine Zusammenfassung erzeugt._'}\n"
+            )
+    except OSError as exc:
+        print(f"  Archiv-Eintrag fehlgeschlagen: {exc}", file=sys.stderr)
+
+
 def main() -> int:
     print(f"Modell: {MODEL}")
     if API_KEY:
@@ -254,6 +282,7 @@ def main() -> int:
             summary = summarize(title, body)
             if post_to_discord(webhook, name, title, link, summary):
                 posted += 1
+                archive_entry(entry, name, title, link, summary)
             else:
                 # Nicht als gesehen markieren, damit der naechste Lauf es erneut versucht.
                 failed.add(entry_id(entry))
