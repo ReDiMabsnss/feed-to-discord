@@ -300,12 +300,25 @@ def _escape_markdown_structure(text: str) -> str:
     return re.sub(r"(?m)^(#{1,6}\s|-\s)", r"\\\1", text)
 
 
-def archive_entry(entry, source: str, title: str, link: str, summary: str | None) -> None:
+def archive_entry(
+    entry,
+    source: str,
+    title: str,
+    link: str,
+    summary: str | None,
+    archive_dir: str | None = None,
+    archive_title: str = "KI-News",
+) -> None:
     """Haengt die Meldung an die Monatsdatei unter archive/ an.
 
     Baut eine Wissenssammlung, die sich als einzelne Quelle in NotebookLM
     einlesen laesst. Ein Fehler hier darf den Lauf nicht abbrechen - die
     Meldung ist zu diesem Zeitpunkt schon bei Discord.
+
+    `archive_dir` (feeds.yaml: "archive") legt eine eigene Unterordner-Sammlung
+    an statt der gemeinsamen - fuer Kategorien, die inhaltlich nicht in dieselbe
+    Wissenssammlung gehoeren (z. B. Gaming neben KI/SAP/Security). Ohne
+    Angabe: unveraendertes Verhalten, gemeinsames Archiv wie bisher.
     """
     stamp = entry.get("published_parsed") or entry.get("updated_parsed")
     day = time.strftime("%Y-%m-%d", stamp or time.gmtime())
@@ -316,11 +329,12 @@ def archive_entry(entry, source: str, title: str, link: str, summary: str | None
     # gilt dafuer, sonst laesst sich das Record-Format ueber ein praepariertes
     # <link> genauso faelschen.
     safe_link = _escape_markdown_structure(link)
+    target_dir = (ARCHIVE_DIR / archive_dir) if archive_dir else ARCHIVE_DIR
 
     try:
-        ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
-        path = ARCHIVE_DIR / f"{month}.md"
-        header = f"# KI-News-Archiv {month}\n" if not path.exists() else ""
+        target_dir.mkdir(parents=True, exist_ok=True)
+        path = target_dir / f"{month}.md"
+        header = f"# {archive_title}-Archiv {month}\n" if not path.exists() else ""
         with path.open("a", encoding="utf-8") as fh:
             fh.write(
                 f"{header}\n## {safe_title}\n\n"
@@ -449,7 +463,11 @@ def main() -> int:
                 fkey = _failure_key(url, eid)
                 if post_to_discord(webhook, name, title, link, summary):
                     posted += 1
-                    archive_entry(entry, name, title, link, summary)
+                    archive_entry(
+                        entry, name, title, link, summary,
+                        archive_dir=feed_cfg.get("archive"),
+                        archive_title=feed_cfg.get("archive_title", "KI-News"),
+                    )
                     failures.pop(fkey, None)
                 else:
                     tries = failures.get(fkey, 0) + 1

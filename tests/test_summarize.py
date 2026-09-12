@@ -144,6 +144,46 @@ def test_archive_entry_escapes_injected_markdown_structure(tmp_path, monkeypatch
     assert "\n- Quelle: Fake" not in written
 
 
+def test_archive_entry_defaults_to_shared_archive(tmp_path, monkeypatch):
+    """Ohne archive_dir/archive_title bleibt das Verhalten unveraendert:
+    gemeinsame Monatsdatei, gewohnte Ueberschrift."""
+    monkeypatch.setattr(summarize, "ARCHIVE_DIR", tmp_path)
+
+    entry = {"published_parsed": time.gmtime(1_700_000_000)}
+    summarize.archive_entry(
+        entry, "OpenAI News", "Titel", "https://example.com/b", "Zusammenfassung.",
+    )
+
+    month = time.strftime("%Y-%m", time.gmtime(1_700_000_000))
+    written = (tmp_path / f"{month}.md").read_text(encoding="utf-8")
+    assert written.startswith(f"# KI-News-Archiv {month}\n")
+
+
+def test_archive_entry_routes_to_separate_archive_with_custom_title(tmp_path, monkeypatch):
+    """Ein Feed mit eigener archive/archive_title-Angabe (z. B. Gaming) landet
+    in einem eigenen Unterordner mit eigener Ueberschrift, nicht in der
+    gemeinsamen KI/SAP/Security-Sammlung."""
+    monkeypatch.setattr(summarize, "ARCHIVE_DIR", tmp_path)
+
+    entry = {"published_parsed": time.gmtime(1_700_000_000)}
+    summarize.archive_entry(
+        entry, "IGN", "Neues Spiel angekuendigt", "https://example.com/a",
+        "Kurze Zusammenfassung.",
+        archive_dir="gaming",
+        archive_title="AI-Gaming News",
+    )
+
+    month = time.strftime("%Y-%m", time.gmtime(1_700_000_000))
+    gaming_file = tmp_path / "gaming" / f"{month}.md"
+    shared_file = tmp_path / f"{month}.md"
+
+    assert gaming_file.exists()
+    assert not shared_file.exists()
+    written = gaming_file.read_text(encoding="utf-8")
+    assert written.startswith(f"# AI-Gaming News-Archiv {month}\n")
+    assert "## Neues Spiel angekuendigt" in written
+
+
 def test_fetch_article_text_caps_response_size(monkeypatch):
     """Eine riesige oder endlose Artikelseite darf den Lauf nicht haengen
     lassen oder unbegrenzt Speicher belegen - die Leseschleife muss frueh

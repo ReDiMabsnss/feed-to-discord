@@ -1,10 +1,14 @@
 # Quellen fuer den News-Bot.
-# webhook:      Name des GitHub-Secrets mit der Discord-Webhook-URL
-# max_per_run:  Obergrenze pro Lauf (Standard 4)
-# max_age_days: Aelteres wird ignoriert (Standard 14)
-# keywords:     nur Eintraege, die eines dieser Worte als eigenstaendiges
-#               Wort enthalten (Wortgrenzen, angehaengtes s erlaubt)
-# fetch_full:   Artikelseite nachladen, wenn der Feed kaum Text liefert
+# webhook:       Name des GitHub-Secrets mit der Discord-Webhook-URL
+# max_per_run:   Obergrenze pro Lauf (Standard 4)
+# max_age_days:  Aelteres wird ignoriert (Standard 14)
+# keywords:      nur Eintraege, die eines dieser Worte als eigenstaendiges
+#                Wort enthalten (Wortgrenzen, angehaengtes s erlaubt)
+# fetch_full:    Artikelseite nachladen, wenn der Feed kaum Text liefert
+# archive:       eigener Unterordner unter archive/ statt der gemeinsamen
+#                Sammlung - fuer Kategorien, die inhaltlich nicht in
+#                dieselbe Wissenssammlung gehoeren (z. B. Gaming)
+# archive_title: Ueberschrift der Archiv-Monatsdatei (Standard "KI-News")
 
 # Wiederverwendbare Stichwortliste fuer die breiten Security-Feeds, die
 # nicht schwerpunktmaessig ueber KI schreiben. Als YAML-Anker abgelegt und
@@ -137,3 +141,33 @@ feeds:
     webhook: DISCORD_WEBHOOK_SECURITY
     keywords: *ai_security
     fetch_full: true
+
+  # ---------- Gaming (zweiter Discord-Server, Kanal "AI-Gaming News") ----------
+  # Breite Gaming-News (Releases, Updates, trending Games), bewusst ohne
+  # Esports-Fokus - deshalb keine dedizierten Esports-Quellen. Eigenes
+  # Archiv statt des gemeinsamen KI/SAP/Security-Archivs, siehe archive/gaming/.
+  # Alle vier am 2026-09-12 geprueft: parsen sauber, aeltester Eintrag lag
+  # jeweils klar unter max_age_days.
+  - name: IGN
+    url: https://www.ign.com/rss/articles/feed
+    webhook: DISCORD_WEBHOOK_GAMING
+    archive: gaming
+    archive_title: AI-Gaming News
+
+  - name: PC Gamer
+    url: https://www.pcgamer.com/rss/
+    webhook: DISCORD_WEBHOOK_GAMING
+    archive: gaming
+    archive_title: AI-Gaming News
+
+  - name: Eurogamer
+    url: https://www.eurogamer.net/feed
+    webhook: DISCORD_WEBHOOK_GAMING
+    archive: gaming
+    archive_title: AI-Gaming News
+
+  - name: GameSpot
+    url: https://www.gamespot.com/feeds/mashup/
+    webhook: DISCORD_WEBHOOK_GAMING
+    archive: gaming
+    archive_title: AI-Gaming News
