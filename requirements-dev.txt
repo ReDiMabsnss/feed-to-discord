@@ -1,4 +1,12 @@
 # Nur zum Testen, nicht Teil des laufenden Bots - deshalb getrennt von
-# requirements.txt und nicht auf der Produktions-Angriffsflaeche.
+# requirements.txt. Der Tests-Schritt in der Action laeuft aber mit
+# GITHUB_TOKEN (Schreibrecht aufs Repo), deshalb genau wie bei den
+# Produktions-Abhaengigkeiten auch hier die mitgezogenen Pakete pinnen.
 
 pytest==8.3.4
+
+# mitgezogen von pytest
+iniconfig==2.3.0
+packaging==24.2
+pluggy==1.6.0
+colorama==0.4.6 ; sys_platform == "win32"

@@ -72,12 +72,18 @@ def load_state() -> dict:
     except json.JSONDecodeError:
         print("WARN: seen.json unlesbar, starte mit leerem Stand", file=sys.stderr)
         return {}
-    # Erwartete Form: {feed_url: [id, ...], "_failures": {id: anzahl}}. Eine
-    # kaputte Form (z. B. eine Liste statt eines Dicts) wuerde sonst still
-    # falsch iteriert statt zu knallen - und jeder Feed wuerde als Erstlauf
-    # behandelt, ohne dass das auffaellt.
-    valid = isinstance(data, dict) and isinstance(data.get("_failures", {}), dict) and all(
-        isinstance(v, list) for k, v in data.items() if k != "_failures"
+    # Erwartete Form: {feed_url: [id, ...], "_failures": {schluessel: anzahl}}.
+    # Eine kaputte Form (z. B. eine Liste statt eines Dicts, oder ein
+    # nicht-numerischer Zaehlerwert) wuerde sonst still falsch verwendet -
+    # z. B. "failures.get(eid, 0) + 1" mitten in der Eintraegeschleife zum
+    # Knallen bringen, nachdem in diesem Lauf fuer den Feed schon erfolgreich
+    # gepostet wurde, und damit dessen frisch gepostete IDs nicht speichern.
+    failures = data.get("_failures", {})
+    valid = (
+        isinstance(data, dict)
+        and isinstance(failures, dict)
+        and all(isinstance(v, int) for v in failures.values())
+        and all(isinstance(v, list) for k, v in data.items() if k != "_failures")
     )
     if not valid:
         print("WARN: seen.json hat unerwartete Form, starte mit leerem Stand", file=sys.stderr)
@@ -111,7 +117,7 @@ def is_recent(entry, max_age_days: int) -> bool:
         return True
     try:
         age_days = (time.time() - time.mktime(stamp)) / 86400
-    except (OverflowError, ValueError):
+    except (OverflowError, ValueError, TypeError):
         return True
     # Nur eine obere Grenze zu pruefen liesse ein falsch weit in der Zukunft
     # liegendes Datum immer als "aktuell" durchgehen. Ein Tag Toleranz nach
@@ -124,9 +130,13 @@ def fetch_article_text(url: str, limit: int = 4000) -> str:
     wenn der Feed keinen Textkoerper mitliefert."""
     # max_bytes deutlich groesser als limit (der Textanteil einer Seite ist
     # kleiner als ihr HTML): grosse Seiten werden gecappt statt komplett
-    # geladen, ein Feed-Link mit riesigem oder endlosem Body haengt den Lauf
-    # nicht auf und blaeht den Speicher nicht auf.
+    # geladen, ein Feed-Link mit riesigem Body haengt den Lauf nicht auf und
+    # blaeht den Speicher nicht auf.
     max_bytes = 500_000
+    # timeout=30 begrenzt nur jeden einzelnen Lese-Vorgang, nicht die
+    # Gesamtdauer - ein Server, der alle paar Sekunden ein paar Bytes
+    # nachschiebt, koennte die Verbindung sonst beliebig lange offen halten.
+    deadline = time.time() + 30
     try:
         with requests.get(
             url,
@@ -140,7 +150,7 @@ def fetch_article_text(url: str, limit: int = 4000) -> str:
             for chunk in resp.iter_content(chunk_size=8192, decode_unicode=False):
                 chunks.append(chunk)
                 read += len(chunk)
-                if read >= max_bytes:
+                if read >= max_bytes or time.time() >= deadline:
                     break
             raw = b"".join(chunks)
             text = raw.decode(resp.encoding or "utf-8", errors="replace")
@@ -164,7 +174,10 @@ def entry_id(entry) -> str:
     stamp = entry.get("published_parsed") or entry.get("updated_parsed")
     title = entry.get("title", "")
     if stamp:
-        return f"{title}|{time.strftime('%Y-%m-%d', stamp)}"
+        try:
+            return f"{title}|{time.strftime('%Y-%m-%d', stamp)}"
+        except (OverflowError, ValueError, TypeError):
+            pass
     return title
 
 
@@ -299,6 +312,10 @@ def archive_entry(entry, source: str, title: str, link: str, summary: str | None
     month = day[:7]
     safe_title = _escape_markdown_structure(title)
     safe_summary = _escape_markdown_structure(summary) if summary else None
+    # link kommt wie title/summary aus dem fremden Feed - dieselbe Absicherung
+    # gilt dafuer, sonst laesst sich das Record-Format ueber ein praepariertes
+    # <link> genauso faelschen.
+    safe_link = _escape_markdown_structure(link)
 
     try:
         ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
@@ -309,11 +326,20 @@ def archive_entry(entry, source: str, title: str, link: str, summary: str | None
                 f"{header}\n## {safe_title}\n\n"
                 f"- Quelle: {source}\n"
                 f"- Datum: {day}\n"
-                f"- Link: {link}\n\n"
+                f"- Link: {safe_link}\n\n"
                 f"{safe_summary if safe_summary else '_Keine Zusammenfassung erzeugt._'}\n"
             )
     except OSError as exc:
         print(f"  Archiv-Eintrag fehlgeschlagen: {exc}", file=sys.stderr)
+
+
+def _failure_key(url: str, eid: str) -> str:
+    """Namespaced Schluessel fuer state['_failures']. Ohne den Feed-Praefix
+    koennten zwei Feeds zufaellig denselben entry_id teilen (z. B. dasselbe
+    Cross-Posting) und sich gegenseitig die Fehlversuch-Zaehlung
+    zuruecksetzen; ausserdem liessen sich verwaiste Eintraege eines aus
+    feeds.yaml entfernten Feeds sonst nicht erkennen und aufraeumen."""
+    return f"{url}\x1f{eid}"
 
 
 def merge_seen(entry_ids: list, seen: set, excluded: set, keep: int) -> list:
@@ -343,8 +369,13 @@ def main() -> int:
     posted = 0
 
     for feed_cfg in config["feeds"]:
-        name = feed_cfg.get("name", "?")
+        name = "?"
         try:
+            # feed_cfg koennte durch einen kaputten Eintrag in feeds.yaml
+            # auch kein Mapping sein (z. B. ein blanker String) - .get() muss
+            # deshalb selbst schon innerhalb des try stehen, sonst wuerde das
+            # genau den Lauf abreissen, den dieser try/except verhindern soll.
+            name = feed_cfg.get("name", "?")
             url = feed_cfg["url"]
             webhook = os.getenv(feed_cfg["webhook"], "").strip()
             # Negativ waere ein Konfigurationsfehler; ohne die Untergrenze
@@ -415,21 +446,22 @@ def main() -> int:
                     body = fetch_article_text(link)
                 summary = summarize(title, body)
                 eid = entry_id(entry)
+                fkey = _failure_key(url, eid)
                 if post_to_discord(webhook, name, title, link, summary):
                     posted += 1
                     archive_entry(entry, name, title, link, summary)
-                    failures.pop(eid, None)
+                    failures.pop(fkey, None)
                 else:
-                    tries = failures.get(eid, 0) + 1
+                    tries = failures.get(fkey, 0) + 1
                     if tries >= MAX_POST_RETRIES:
                         # Nach mehrfachem Scheitern (z. B. dauerhaft kaputter
                         # Link) aufgeben statt endlos jeden Lauf erneut zu
                         # versuchen - wird unten als gesehen markiert.
                         print(f"  {title[:60]}: {tries}x fehlgeschlagen, aufgegeben",
                               file=sys.stderr)
-                        failures.pop(eid, None)
+                        failures.pop(fkey, None)
                     else:
-                        failures[eid] = tries
+                        failures[fkey] = tries
                         # Nicht als gesehen markieren, damit der naechste Lauf es erneut versucht.
                         failed.add(eid)
                 time.sleep(2)
@@ -458,6 +490,13 @@ def main() -> int:
     for url in [u for u in state if u != "_failures" and u not in aktuell]:
         print(f"Stand fuer entfernten Feed verworfen: {url}")
         del state[url]
+
+    # Verwaiste Fehlversuch-Zaehler von Feeds, die es nicht mehr gibt (oder
+    # noch nie erfolgreich gelesen wurden), wuerden sonst fuer immer liegen
+    # bleiben - der Schluessel ist "<feed_url>\x1f<entry_id>", siehe
+    # _failure_key.
+    for fkey in [k for k in failures if k.split("\x1f", 1)[0] not in aktuell]:
+        del failures[fkey]
 
     save_state(state)
     print(f"Fertig. {posted} Meldungen gepostet.")
