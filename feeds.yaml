@@ -1,36 +1,48 @@
 # Quellen fuer den News-Bot.
-# webhook: Name des GitHub-Secrets, in dem die Discord-Webhook-URL liegt.
-# Feed-URLs vor dem ersten Lauf pruefen: im Browser oeffnen, es muss XML kommen.
+# webhook:      Name des GitHub-Secrets mit der Discord-Webhook-URL
+# max_per_run:  Obergrenze pro Lauf (Standard 4)
+# max_age_days: Aelteres wird ignoriert (Standard 14)
+# keywords:     nur Eintraege, die eines dieser Worte enthalten
 
 feeds:
   # ---------- allgemein ----------
+  - name: OpenAI News
+    url: https://openai.com/news/rss.xml
+    webhook: DISCORD_WEBHOOK_ALLGEMEIN
+
+  # Anthropic hat keinen offiziellen Feed. Das hier ist ein Community-Spiegel
+  # und kann jederzeit verschwinden. Faellt er aus: Zeilen loeschen.
   - name: Anthropic News
-    url: https://www.anthropic.com/news/rss.xml
+    url: https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_news.xml
     webhook: DISCORD_WEBHOOK_ALLGEMEIN
 
   - name: Google DeepMind Blog
-    url: https://deepmind.google/blog/rss.xml
+    url: https://deepmind.google/blog/feed/basic/
     webhook: DISCORD_WEBHOOK_ALLGEMEIN
 
   - name: Hugging Face Blog
     url: https://huggingface.co/blog/feed.xml
     webhook: DISCORD_WEBHOOK_ALLGEMEIN
+    max_age_days: 7          # Feed enthaelt den kompletten Blogverlauf
 
   - name: Simon Willison
     url: https://simonwillison.net/atom/everything/
     webhook: DISCORD_WEBHOOK_ALLGEMEIN
+    max_per_run: 2
 
   - name: arXiv cs.AI
-    url: http://export.arxiv.org/rss/cs.AI
+    url: https://rss.arxiv.org/rss/cs.AI
     webhook: DISCORD_WEBHOOK_ALLGEMEIN
-    max_per_run: 2          # arXiv ist laut, hart begrenzen
+    max_per_run: 2
+    max_age_days: 3
 
   - name: heise KI
     url: https://www.heise.de/rss/heise-atom.xml
     webhook: DISCORD_WEBHOOK_ALLGEMEIN
-    keywords: [KI, "Künstliche Intelligenz", LLM, OpenAI, Anthropic, Gemini]
+    keywords: [KI, "Künstliche Intelligenz", LLM, OpenAI, Anthropic, Gemini, Sprachmodell]
 
   # ---------- SAP ----------
+  # Diese vier haben im Lauf vom 12.09. sauber geparst.
   - name: SAP Community AI Blogs
     url: https://community.sap.com/khhcw49343/rss/board?board.id=aiblog-board
     webhook: DISCORD_WEBHOOK_SAP
@@ -38,6 +50,7 @@ feeds:
   - name: SAP Community Technology (by SAP)
     url: https://community.sap.com/khhcw49343/rss/board?board.id=technology-blog-sap
     webhook: DISCORD_WEBHOOK_SAP
+    max_per_run: 3
 
   - name: SAP News Center
     url: https://news.sap.com/feed/
