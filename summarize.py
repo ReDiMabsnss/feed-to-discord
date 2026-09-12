@@ -109,10 +109,19 @@ def entry_id(entry) -> str:
 
 
 def matches_keywords(entry, keywords) -> bool:
+    """True, wenn eines der Stichworte als eigenstaendiges Wort vorkommt.
+
+    Auf Wortgrenzen pruefen, nicht auf Teilstrings: sonst trifft "KI" auch
+    Tracking, Hacking und Marketing, und "AI" auch email und domain. Ein
+    angehaengtes s wird geduldet, damit LLMs auf LLM passt.
+    """
     if not keywords:
         return True
     haystack = (entry.get("title", "") + " " + entry_body(entry)).lower()
-    return any(k.lower() in haystack for k in keywords)
+    return any(
+        re.search(rf"(?<![a-z0-9]){re.escape(k.lower())}s?(?![a-z0-9])", haystack)
+        for k in keywords
+    )
 
 
 def summarize(title: str, body: str) -> str | None:

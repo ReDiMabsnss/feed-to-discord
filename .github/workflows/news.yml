@@ -30,6 +30,7 @@ jobs:
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
           DISCORD_WEBHOOK_ALLGEMEIN: ${{ secrets.DISCORD_WEBHOOK_ALLGEMEIN }}
           DISCORD_WEBHOOK_SAP: ${{ secrets.DISCORD_WEBHOOK_SAP }}
+          DISCORD_WEBHOOK_SECURITY: ${{ secrets.DISCORD_WEBHOOK_SECURITY }}
         run: python summarize.py
 
       - name: Stand und Archiv zurueckschreiben

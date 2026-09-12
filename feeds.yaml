@@ -2,7 +2,33 @@
 # webhook:      Name des GitHub-Secrets mit der Discord-Webhook-URL
 # max_per_run:  Obergrenze pro Lauf (Standard 4)
 # max_age_days: Aelteres wird ignoriert (Standard 14)
-# keywords:     nur Eintraege, die eines dieser Worte enthalten
+# keywords:     nur Eintraege, die eines dieser Worte als eigenstaendiges
+#               Wort enthalten (Wortgrenzen, angehaengtes s erlaubt)
+# fetch_full:   Artikelseite nachladen, wenn der Feed kaum Text liefert
+
+# Wiederverwendbare Stichwortliste fuer die breiten Security-Feeds, die
+# nicht schwerpunktmaessig ueber KI schreiben. Als YAML-Anker abgelegt und
+# weiter unten mit *ai_security referenziert. Das Skript liest nur den
+# Schluessel "feeds", dieser Block stoert es nicht.
+ai_security: &ai_security
+  - KI
+  - AI
+  - LLM
+  - GenAI
+  - agentic
+  - prompt injection
+  - jailbreak
+  - machine learning
+  - neural network
+  - chatbot
+  - Copilot
+  - ChatGPT
+  - Claude
+  - Gemini
+  - OpenAI
+  - Anthropic
+  - deepfake
+  - MCP
 
 feeds:
   # ---------- allgemein ----------
@@ -61,3 +87,48 @@ feeds:
   - name: SAPinsider Blogs
     url: https://sapinsider.org/type/blogs/feed/
     webhook: DISCORD_WEBHOOK_SAP
+
+  # ---------- IT-Security im KI-Kontext ----------
+  # Fuer diese drei ist KI-Sicherheit das Kernthema, daher ohne Filter.
+  - name: Embrace The Red
+    url: https://embracethered.com/blog/index.xml
+    webhook: DISCORD_WEBHOOK_SECURITY
+
+  - name: OWASP GenAI Security
+    url: https://genai.owasp.org/feed/
+    webhook: DISCORD_WEBHOOK_SECURITY
+
+  - name: Adversa AI
+    url: https://adversa.ai/feed/
+    webhook: DISCORD_WEBHOOK_SECURITY
+    max_per_run: 2
+    fetch_full: true      # Feed liefert nur Anreisser
+
+  # Breite Security-Forschung: nur Eintraege mit KI-Bezug durchlassen.
+  - name: Trail of Bits
+    url: https://blog.trailofbits.com/feed/
+    webhook: DISCORD_WEBHOOK_SECURITY
+    keywords: *ai_security
+
+  - name: Google Project Zero
+    url: https://googleprojectzero.blogspot.com/feeds/posts/default
+    webhook: DISCORD_WEBHOOK_SECURITY
+    keywords: *ai_security
+
+  - name: PortSwigger Research
+    url: https://portswigger.net/research/rss
+    webhook: DISCORD_WEBHOOK_SECURITY
+    keywords: *ai_security
+    fetch_full: true
+
+  - name: Unit 42
+    url: https://unit42.paloaltonetworks.com/feed/
+    webhook: DISCORD_WEBHOOK_SECURITY
+    keywords: *ai_security
+    fetch_full: true
+
+  - name: Cisco Talos
+    url: https://blog.talosintelligence.com/rss/
+    webhook: DISCORD_WEBHOOK_SECURITY
+    keywords: *ai_security
+    fetch_full: true
