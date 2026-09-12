@@ -15,10 +15,12 @@ feeds:
   - name: Anthropic News
     url: https://raw.githubusercontent.com/Olshansk/rss-feeds/main/feeds/feed_anthropic_news.xml
     webhook: DISCORD_WEBHOOK_ALLGEMEIN
+    fetch_full: true      # Feed liefert keinen Textkoerper
 
   - name: Google DeepMind Blog
     url: https://deepmind.google/blog/feed/basic/
     webhook: DISCORD_WEBHOOK_ALLGEMEIN
+    fetch_full: true      # Feed liefert keinen Textkoerper
 
   - name: Hugging Face Blog
     url: https://huggingface.co/blog/feed.xml
